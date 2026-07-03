@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CombatCustom Shorts Customizer Loop</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #3a3a3a 0%, #111111 85%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+        model-viewer {
+            width: 95vw;
+            height: 95vh;
+            transform: translateY(-5%);
+            --poster-color: transparent;
+        }
+        .controls-hint {
+            position: absolute;
+            bottom: 20px;
+            color: #fff;
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <model-viewer 
+        id="shortsViewer" 
+        src="MT_SHORTS.glb" 
+        alt="CombatCustom Muay Thai Shorts" 
+        auto-rotate 
+        rotation-per-second="-35deg"
+        interaction-prompt="none"
+        environment-image="neutral"
+        exposure="1.2"
+        shadow-intensity="1">
+    </model-viewer>
+
+    <script>
+        const viewer = document.querySelector("#shortsViewer");
+
+        // ---- Logo asset URLs (from Combatcustom/MT-Shorts_Animation repo) ----
+        const LOGO_URLS = {
+            "brand-white": "https://raw.githubusercontent.com/Combatcustom/Muay-Thai-Animation/main/brand-white.png",
+            "brand-black": "https://raw.githubusercontent.com/Combatcustom/Muay-Thai-Animation/main/brand-black.png",
+            "kicker-white": "https://raw.githubusercontent.com/Combatcustom/Muay-Thai-Animation/main/kicker-white.png",
+            "kicker-black": "https://raw.githubusercontent.com/Combatcustom/Muay-Thai-Animation/main/kicker-black.png"
+        };
+
+        // Size of the composited logo texture. Square by default —
+        // adjust if the LogoPanel's UV shape turns out to be rectangular.
+        const LOGO_CANVAS_SIZE = 4096;
+        // Lower padding value = more breathing room from the panel's edges,
+        // where the curved/dense mesh geometry causes the most visible texture stretching.
+        const LOGO_FILL_RATIO = 0.7;
+
+        function safeColor(hexStr) {
+            const clean = hexStr.trim().toLowerCase();
+            if (clean === 'white') return [0.95, 0.95, 0.95, 1.0];
+            if (clean === 'black') return [0.03, 0.03, 0.03, 1.0];
+            
+            const hex = clean.replace('#', '');
+            if (hex.length !== 6) return [1.0, 1.0, 1.0, 1.0];
+            
+            const r = parseInt(hex.substring(0, 2), 16) / 255;
+            const g = parseInt(hex.substring(2, 4), 16) / 255;
+            const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+            return [Math.pow(r, 2.2), Math.pow(g, 2.2), Math.pow(b, 2.2), 1.0];
+        }
+
+        // Resolves "white" / "black" / "#hex" into a real CSS color string for canvas fills.
+        function cssColor(hexStr) {
+            const clean = hexStr.trim().toLowerCase();
+            if (clean === 'white') return '#f2f2f2';
+            if (clean === 'black') return '#080808';
+            return clean.startsWith('#') ? clean : '#' + clean;
+        }
+
+        // Complete original color configurations preserved exactly,
+        // plus logoPanelHex (raw, for canvas) and logoAsset (which PNG to use).
+        const designCombos = [
+            {
+                frontLeft: safeColor("#631b1b"), backLeft: safeColor("#631b1b"), midLeft: safeColor("#631b1b"),
+                frontRight: safeColor("#631b1b"), backRight: safeColor("#631b1b"), midRight: safeColor("#631b1b"),
+                waistband: safeColor("#250000"), sidelines: safeColor("white"), logoPanel: safeColor("white"),
+                bottomPiping: safeColor("white"), stitching: safeColor("white"),
+                logoPanelHex: "white", logoAsset: "kicker-black"
+            },
+            {
+                frontLeft: safeColor("#ffbf00"), backLeft: safeColor("#ffbf00"), midLeft: safeColor("#ffbf00"),
+                frontRight: safeColor("#353535"), backRight: safeColor("#353535"), midRight: safeColor("#353535"),
+                waistband: safeColor("#4b4b4b"), sidelines: safeColor("#4b4b4b"), logoPanel: safeColor("#4b4b4b"),
+                bottomPiping: safeColor("white"), stitching: safeColor("black"),
+                logoPanelHex: "#4b4b4b", logoAsset: "brand-white"
+            },
+            {
+                frontLeft: safeColor("#c3ccec"), backLeft: safeColor("#c3ccec"), midLeft: safeColor("#412727"),
+                frontRight: safeColor("#c3ccec"), backRight: safeColor("#c3ccec"), midRight: safeColor("#412727"),
+                waistband: safeColor("#412727"), sidelines: safeColor("#303030"), logoPanel: safeColor("#303030"),
+                bottomPiping: safeColor("#c3ccec"), stitching: safeColor("black"),
+                logoPanelHex: "#303030", logoAsset: "kicker-white"
+            },
+            {
+                frontLeft: safeColor("#789678"), backLeft: safeColor("#789678"), midLeft: safeColor("#789678"),
+                frontRight: safeColor("#789678"), backRight: safeColor("#789678"), midRight: safeColor("#789678"),
+                waistband: safeColor("#4b4b4b"), sidelines: safeColor("#4b4b4b"), logoPanel: safeColor("#4b4b4b"),
+                bottomPiping: safeColor("#789678"), stitching: safeColor("black"),
+                logoPanelHex: "#4b4b4b", logoAsset: "brand-white"
+            },
+            {
+                frontLeft: safeColor("#331800"), backLeft: safeColor("#331800"), midLeft: safeColor("#331800"),
+                frontRight: safeColor("#9898ac"), backRight: safeColor("#9898ac"), midRight: safeColor("#9898ac"),
+                waistband: safeColor("#9898ac"), sidelines: safeColor("#cecece"), logoPanel: safeColor("#cecece"),
+                bottomPiping: safeColor("#9898ac"), stitching: safeColor("black"),
+                logoPanelHex: "#cecece", logoAsset: "kicker-black"
+            },
+            {
+                frontLeft: safeColor("#020101"), backLeft: safeColor("#020101"), midLeft: safeColor("#202044"),
+                frontRight: safeColor("#020101"), backRight: safeColor("#020101"), midRight: safeColor("#202044"),
+                waistband: safeColor("#020101"), sidelines: safeColor("#020101"), logoPanel: safeColor("#9b9b9b"),
+                bottomPiping: safeColor("#9b9b9b"), stitching: safeColor("white"),
+                logoPanelHex: "#9b9b9b", logoAsset: "brand-white"
+            },
+            {
+                frontLeft: safeColor("#b9a973"), backLeft: safeColor("#b9a973"), midLeft: safeColor("#b9a973"),
+                frontRight: safeColor("#b9a973"), backRight: safeColor("#b9a973"), midRight: safeColor("#b9a973"),
+                waistband: safeColor("#0f2c0f"), sidelines: safeColor("#0f2c0f"), logoPanel: safeColor("#9b9b9b"),
+                bottomPiping: safeColor("#9b9b9b"), stitching: safeColor("black"),
+                logoPanelHex: "#9b9b9b", logoAsset: "kicker-black"
+            },
+            {
+                frontLeft: safeColor("#446970"), backLeft: safeColor("#446970"), midLeft: safeColor("#446970"),
+                frontRight: safeColor("#bebebe"), backRight: safeColor("#bebebe"), midRight: safeColor("#bebebe"),
+                waistband: safeColor("#bebebe"), sidelines: safeColor("#1c2513"), logoPanel: safeColor("#1c2513"),
+                bottomPiping: safeColor("black"), stitching: safeColor("white"),
+                logoPanelHex: "#1c2513", logoAsset: "brand-white"
+            },
+            {
+                frontLeft: safeColor("#c58c9c"), backLeft: safeColor("#c58c9c"), midLeft: safeColor("#5f5f80"),
+                frontRight: safeColor("#c58c9c"), backRight: safeColor("#c58c9c"), midRight: safeColor("#5f5f80"),
+                waistband: safeColor("#5f504f"), sidelines: safeColor("#b6b6b6"), logoPanel: safeColor("#b6b6b6"),
+                bottomPiping: safeColor("#b6b6b6"), stitching: safeColor("white"),
+                logoPanelHex: "#b6b6b6", logoAsset: "kicker-black"
+            },
+            {
+                frontLeft: safeColor("#0a0030"), backLeft: safeColor("#0a0030"), midLeft: safeColor("#0a0030"),
+                frontRight: safeColor("#0a0030"), backRight: safeColor("#0a0030"), midRight: safeColor("#0a0030"),
+                waistband: safeColor("#5f504f"), sidelines: safeColor("#5f504f"), logoPanel: safeColor("black"),
+                bottomPiping: safeColor("white"), stitching: safeColor("black"),
+                logoPanelHex: "black", logoAsset: "brand-white"
+            },
+            {
+                frontLeft: safeColor("#2e4b2e"), backLeft: safeColor("#2e4b2e"), midLeft: safeColor("#2e4b2e"),
+                frontRight: safeColor("#aa0000"), backRight: safeColor("#aa0000"), midRight: safeColor("#aa0000"),
+                waistband: safeColor("white"), sidelines: safeColor("white"), logoPanel: safeColor("#2f2d38"),
+                bottomPiping: safeColor("white"), stitching: safeColor("white"),
+                logoPanelHex: "#2f2d38", logoAsset: "kicker-white"
+            },
+            {
+                frontLeft: safeColor("#ff7633"), backLeft: safeColor("#ff7633"), midLeft: safeColor("#9898ac"),
+                frontRight: safeColor("#ff7633"), backRight: safeColor("#ff7633"), midRight: safeColor("#9898ac"),
+                waistband: safeColor("#9898ac"), sidelines: safeColor("#301c1c"), logoPanel: safeColor("#301c1c"),
+                bottomPiping: safeColor("white"), stitching: safeColor("black"),
+                logoPanelHex: "#301c1c", logoAsset: "brand-white"
+            }
+        ];
+
+        // ---- Preload logo images ----
+        function loadImage(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.onload = () => resolve(img);
+                img.onerror = (e) => reject(new Error("Failed to load " + url));
+                img.src = url;
+            });
+        }
+
+        // ---- Exact UV rectangle for the LogoPanel mesh, extracted directly from the .glb ----
+        const LOGO_UV_RECT = { uMin: 0.3654, uMax: 0.4805, vMin: 0.8102, vMax: 0.8766 };
+
+        function buildLogoTextureDataURL(bgHex, logoImg) {
+            const canvas = document.createElement("canvas");
+            canvas.width = LOGO_CANVAS_SIZE;
+            canvas.height = LOGO_CANVAS_SIZE;
+            const ctx = canvas.getContext("2d");
+
+            // Fill everything with background color (only the small UV rect below is ever seen)
+            ctx.fillStyle = cssColor(bgHex);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Convert the mesh's exact UV rectangle into pixel coordinates on this canvas
+            const rectX = LOGO_UV_RECT.uMin * canvas.width;
+            const rectY = LOGO_UV_RECT.vMin * canvas.height;
+            const rectW = (LOGO_UV_RECT.uMax - LOGO_UV_RECT.uMin) * canvas.width;
+            const rectH = (LOGO_UV_RECT.vMax - LOGO_UV_RECT.vMin) * canvas.height;
+
+            // Fit logo inside that exact rectangle, preserving aspect ratio, small padding
+            const padding = 0.75; // more margin from the rect edges to hide mesh-curvature stretching
+            const maxW = rectW * padding;
+            const maxH = rectH * padding;
+            const scale = Math.min(maxW / logoImg.width, maxH / logoImg.height);
+            const drawW = logoImg.width * scale;
+            const drawH = logoImg.height * scale;
+            const dx = rectX + (rectW - drawW) / 2;
+            const dy = rectY + (rectH - drawH) / 2;
+
+            ctx.drawImage(logoImg, dx, dy, drawW, drawH);
+
+            return canvas.toDataURL("image/png");
+        }
+
+        let comboIndex = 0;
+        let loopInterval = null;
+
+        async function startColorLoop() {
+            const materials = viewer.model.materials;
+            const logoPanelMaterial = materials.find(m => m.name === "LogoPanel");
+
+            // Preload the 4 unique logo images once
+            const uniqueAssets = [...new Set(designCombos.map(c => c.logoAsset))];
+            const imageCache = {};
+            await Promise.all(uniqueAssets.map(async (assetKey) => {
+                imageCache[assetKey] = await loadImage(LOGO_URLS[assetKey]);
+            }));
+
+            // Precompute the composited image (cheap, CPU-only) for every combo upfront.
+            // We do NOT upload all 12 as GPU textures yet - at 4096px that would use too much
+            // GPU memory held simultaneously. Only the currently-displayed one gets uploaded.
+            for (const combo of designCombos) {
+                combo.logoDataUrl = buildLogoTextureDataURL(combo.logoPanelHex, imageCache[combo.logoAsset]);
+            }
+
+            // Set LogoPanel base params (full white factor so texture colors show unmodified)
+            if (logoPanelMaterial) {
+                logoPanelMaterial.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
+                logoPanelMaterial.pbrMetallicRoughness.setRoughnessFactor(0.65);
+                logoPanelMaterial.pbrMetallicRoughness.setMetallicFactor(0.15);
+            }
+
+            loopInterval = setInterval(async () => {
+                const current = designCombos[comboIndex];
+
+                materials.forEach(material => {
+                    const name = material.name;
+
+                    if (name === "FrontLeftPanel") material.pbrMetallicRoughness.setBaseColorFactor(current.frontLeft);
+                    else if (name === "BackLeftPanel") material.pbrMetallicRoughness.setBaseColorFactor(current.backLeft);
+                    else if (name === "MidLeftPanel") material.pbrMetallicRoughness.setBaseColorFactor(current.midLeft);
+                    else if (name === "FrontRightPanel") material.pbrMetallicRoughness.setBaseColorFactor(current.frontRight);
+                    else if (name === "BackRightPanel") material.pbrMetallicRoughness.setBaseColorFactor(current.backRight);
+                    else if (name === "MidRightPanel") material.pbrMetallicRoughness.setBaseColorFactor(current.midRight);
+                    else if (name === "WaistBand") material.pbrMetallicRoughness.setBaseColorFactor(current.waistband);
+                    else if (name === "Sidelines") material.pbrMetallicRoughness.setBaseColorFactor(current.sidelines);
+                    else if (name === "BottomPiping") material.pbrMetallicRoughness.setBaseColorFactor(current.bottomPiping);
+                    else if (name === "Stitching") material.pbrMetallicRoughness.setBaseColorFactor(current.stitching);
+
+                    // Re-enforces satin parameters continuously to stop plasticity/shininess
+                    if (["FrontLeftPanel", "BackLeftPanel", "MidLeftPanel", "FrontRightPanel", "BackRightPanel", "MidRightPanel", "WaistBand", "Sidelines"].includes(name)) {
+                        material.pbrMetallicRoughness.setRoughnessFactor(0.65); 
+                        material.pbrMetallicRoughness.setMetallicFactor(0.15); 
+                    }
+                });
+
+                // Upload only the current combo's logo texture to the GPU, on demand
+                if (logoPanelMaterial) {
+                    const tex = await viewer.createTexture(current.logoDataUrl);
+                    logoPanelMaterial.pbrMetallicRoughness.baseColorTexture.setTexture(tex);
+                }
+
+                comboIndex = (comboIndex + 1) % designCombos.length;
+            }, 1200);
+        }
+
+        if (viewer.loaded) {
+            startColorLoop();
+        } else {
+            viewer.addEventListener("load", startColorLoop);
+        }
+    </script>
+</body>
+</html>
