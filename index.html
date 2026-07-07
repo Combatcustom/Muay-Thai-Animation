@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dynamic Patch Test</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background: #1a1a1a;
+            font-family: sans-serif;
+            color: #fff;
+        }
+        model-viewer {
+            width: 100vw;
+            height: 85vh;
+        }
+        .controls {
+            padding: 16px;
+            text-align: center;
+        }
+        input[type="file"] {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <model-viewer
+        id="viewer"
+        src="model.glb"
+        alt="Patch test model"
+        camera-controls
+        auto-rotate
+        exposure="1.1"
+        shadow-intensity="1">
+    </model-viewer>
+
+    <div class="controls">
+        <label for="patchUpload">Upload a transparent PNG to apply as a patch:</label><br>
+        <input type="file" id="patchUpload" accept="image/png">
+    </div>
+
+    <script>
+        const viewer = document.querySelector("#viewer");
+        const fileInput = document.querySelector("#patchUpload");
+
+        // Name of the mesh/material in the .glb that represents the raised patch panel.
+        // Must match exactly what's set in the 3D software.
+        const PATCH_MATERIAL_NAME = "PatchSpace";
+
+        fileInput.addEventListener("change", async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!viewer.model) {
+                alert("Model hasn't finished loading yet - try again in a moment.");
+                return;
+            }
+
+            // 1. Load the uploaded PNG into an Image object
+            const imageUrl = URL.createObjectURL(file);
+            const img = await loadImage(imageUrl);
+
+            // 2. Draw it onto a canvas. A standard 2D canvas context preserves the
+            //    PNG's alpha channel automatically - no extra work needed to carry
+            //    transparency through into the texture.
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // ensure fully transparent base
+            ctx.drawImage(img, 0, 0);
+
+            // 3. Turn that canvas into a texture model-viewer can use on a material
+            const dataUrl = canvas.toDataURL("image/png");
+            const texture = await viewer.createTexture(dataUrl);
+
+            // 4. Find the patch material and apply the texture
+            const patchMaterial = viewer.model.materials.find(m => m.name === PATCH_MATERIAL_NAME);
+            if (!patchMaterial) {
+                alert(`No material named "${PATCH_MATERIAL_NAME}" found on this model.`);
+                return;
+            }
+
+            patchMaterial.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
+            patchMaterial.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
+
+            // 5. This is the key step for the "cuts itself to the shape" effect:
+            //    MASK mode tells the renderer to fully discard any pixel where the
+            //    base color texture's own alpha channel falls below the cutoff -
+            //    so the mesh visually disappears everywhere the PNG was transparent,
+            //    leaving only the uploaded shape's silhouette "cut out" and visible.
+            patchMaterial.setAlphaMode("MASK");
+            patchMaterial.setAlphaCutoff(0.5); // pixels with alpha below this are discarded entirely
+
+            URL.revokeObjectURL(imageUrl);
+        });
+
+        function loadImage(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = url;
+            });
+        }
+    </script>
+</body>
+</html>
