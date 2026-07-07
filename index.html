@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dynamic Center Patch Test</title>
+    <title>Dynamic Floating Patch Test</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
         body {
@@ -13,20 +13,28 @@
         }
         model-viewer {
             width: 100vw;
-            height: 82vh;
+            height: 85vh;
         }
         .controls {
             padding: 16px;
             text-align: center;
-            background: #222;
         }
         input[type="file"] {
             color: #fff;
         }
-        .slider-group {
-            margin-top: 10px;
-            display: inline-block;
-            margin-right: 20px;
+
+        /* This controls the patch styling */
+        .floating-patch-container {
+            display: none; /* Hidden until upload */
+            pointer-events: none; /* Stops the patch from blocking camera rotations */
+        }
+
+        .floating-patch-container img {
+            width: 90px; /* Adjust this number to make the logo bigger or smaller */
+            height: auto;
+            /* Gives it a solid, crisp look with a subtle shadow to make it look 3D raised */
+            filter: drop-shadow(0px 3px 3px rgba(0, 0, 0, 0.7));
+            transform: translate(-50%, -50%); /* Centers it perfectly on the coordinate anchor */
         }
     </style>
 </head>
@@ -41,102 +49,34 @@
         rotation-per-second="-35deg"
         exposure="1.2"
         shadow-intensity="1">
+
+        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-crotch" data-position="0m 0.961m 0.115m" data-normal="0m 0m 1m">
+            <img id="patchPreview" src="" alt="Custom User Patch">
+        </div>
+
     </model-viewer>
 
     <div class="controls">
-        <label for="patchUpload">Upload a transparent PNG patch:</label>
+        <label for="patchUpload">Upload a transparent PNG to apply as a patch:</label><br><br>
         <input type="file" id="patchUpload" accept="image/png">
-        
-        <br>
-        <div class="slider-group">
-            <label>Move Left/Right: </label>
-            <input type="range" id="posXSlider" min="0" max="2048" value="1024">
-        </div>
-        <div class="slider-group">
-            <label>Move Up/Down: </label>
-            <input type="range" id="posYSlider" min="0" max="2048" value="1300">
-        </div>
-        <div class="slider-group">
-            <label>Patch Scale: </label>
-            <input type="range" id="scaleSlider" min="100" max="800" value="350">
-        </div>
     </div>
 
     <script>
-        const viewer = document.querySelector("#viewer");
         const fileInput = document.querySelector("#patchUpload");
-        const posXSlider = document.querySelector("#posXSlider");
-        const posYSlider = document.querySelector("#posYSlider");
-        const scaleSlider = document.querySelector("#scaleSlider");
+        const patchContainer = document.querySelector("#patchHotspot");
+        const patchImage = document.querySelector("#patchPreview");
 
-        let loadedImg = null;
-        let originalTextures = new Map(); // Store original textures to prevent panels from vanishing
-
-        async function updateTexture() {
-            if (!loadedImg || !viewer.model) return;
-
-            const canvasSize = 2048;
-            const canvas = document.createElement("canvas");
-            canvas.width = canvasSize;
-            canvas.height = canvasSize;
-            const ctx = canvas.getContext("2d");
-
-            // 1. Draw the uploaded image onto our clean canvas using the slider offsets
-            const patchWidth = parseInt(scaleSlider.value);
-            const patchHeight = patchWidth * (loadedImg.height / loadedImg.width);
-            const posX = parseInt(posXSlider.value) - (patchWidth / 2);
-            const posY = parseInt(posYSlider.value) - (patchHeight / 2); 
-
-            ctx.drawImage(loadedImg, posX, posY, patchWidth, patchHeight);
-
-            const dataUrl = canvas.toDataURL("image/png");
-            const patchTexture = await viewer.createTexture(dataUrl);
-
-            // 2. Target the main front fabric panels
-            const frontPanels = ["FrontLeftPanel", "FrontRightPanel"];
-            
-            viewer.model.materials.forEach(material => {
-                if (frontPanels.includes(material.name)) {
-                    // Keep the fabric completely solid (NO MORE DISAPPEARING PANELS)
-                    material.setAlphaMode("OPAQUE");
-
-                    // Inject the user's logo directly into the texture layer
-                    if (material.pbrMetallicRoughness.baseColorTexture) {
-                        material.pbrMetallicRoughness.baseColorTexture.setTexture(patchTexture);
-                    }
-                }
-            });
-        }
-
-        fileInput.addEventListener("change", async (event) => {
+        fileInput.addEventListener("change", (event) => {
             const file = event.target.files[0];
             if (!file) return;
 
-            if (!viewer.model) {
-                alert("Model hasn't finished loading yet!");
-                return;
-            }
-
+            // Create a clear local URL for the uploaded graphic file
             const imageUrl = URL.createObjectURL(file);
-            loadedImg = await loadImage(imageUrl);
-            
-            updateTexture();
-            URL.revokeObjectURL(imageUrl);
+
+            // Stick the image directly into our floating hotspot layer
+            patchImage.src = imageUrl;
+            patchContainer.style.display = "block"; // Make it visible instantly
         });
-
-        // Live slider listeners
-        posXSlider.addEventListener("input", updateTexture);
-        posYSlider.addEventListener("input", updateTexture);
-        scaleSlider.addEventListener("input", updateTexture);
-
-        function loadImage(url) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => resolve(img);
-                img.onerror = reject;
-                img.src = url;
-            });
-        }
     </script>
 </body>
 </html>
