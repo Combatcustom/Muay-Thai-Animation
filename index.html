@@ -23,18 +23,18 @@
             color: #fff;
         }
 
-        /* CSS styling that gives the uploaded patch its 3D depth and shadow */
+        /* CSS styling that gives the uploaded patch its visual depth */
         .floating-patch-container {
             display: none; /* Hidden until a file is uploaded */
-            pointer-events: none; /* Stops the image from blocking your mouse rotations */
+            pointer-events: none; /* Stops the image overlay from breaking mouse rotations */
         }
 
         .floating-patch-container img {
-            width: 90px; /* Adjust this number to make your patch larger or smaller */
+            width: 90px; /* Adjust this number to scale your patch larger or smaller */
             height: auto;
-            /* Creates a shadow underneath the image so it looks raised from the fabric */
+            /* Creates a shadow underneath the image so it pops out from the fabric */
             filter: drop-shadow(0px 3px 3px rgba(0, 0, 0, 0.65));
-            transform: translate(-50%, -50%); /* Keeps the logo perfectly centered on the target coordinate */
+            transform: translate(-50%, -50%); /* Keeps the logo perfectly centered on the coordinate point */
         }
     </style>
 </head>
@@ -50,7 +50,7 @@
         exposure="1.2"
         shadow-intensity="1">
 
-        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-crotch" data-position="0m 0.52m 0.25m" data-normal="0m 0m 1m">
+        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-crotch" data-position="0m 0.46m -0.22m" data-normal="0m 0m -1m">
             <img id="patchPreview" src="" alt="Custom User Patch">
         </div>
 
@@ -70,13 +70,13 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            // Generate a local path link for your uploaded file
+            // Create local object reference link
             const imageUrl = URL.createObjectURL(file);
 
-            // Send that image path straight into the floating element on the shorts
+            // Force image source path update
             patchImage.src = imageUrl;
             
-            // TYPO FIXED HERE: Corrected .style.style to single .style
+            // Set element visibility state to active
             patchContainer.style.display = "block"; 
         });
     </script>
