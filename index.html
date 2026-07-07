@@ -23,17 +23,17 @@
             color: #fff;
         }
 
-        /* CSS styling that gives the uploaded patch its visual depth */
+        /* CSS styling that handles the patch appearance */
         .floating-patch-container {
             display: none; /* Hidden until a file is uploaded */
-            pointer-events: none; /* Stops the image overlay from breaking mouse rotations */
+            pointer-events: none; /* Stops the image overlay from blocking mouse controls */
         }
 
         .floating-patch-container img {
             width: 90px; /* Adjust this number to scale your patch larger or smaller */
             height: auto;
             /* Creates a shadow underneath the image so it pops out from the fabric */
-            filter: drop-shadow(0px 3px 3px rgba(0, 0, 0, 0.65));
+            filter: drop-shadow(0px 3px 3px rgba(0, 0, 0, 0.75));
             transform: translate(-50%, -50%); /* Keeps the logo perfectly centered on the coordinate point */
         }
     </style>
@@ -50,7 +50,7 @@
         exposure="1.2"
         shadow-intensity="1">
 
-        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-crotch" data-position="0m 0.46m -0.22m" data-normal="0m 0m -1m">
+        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-crotch" data-position="0m 0.46m -0.25m" data-normal="0m 0m -1m">
             <img id="patchPreview" src="" alt="Custom User Patch">
         </div>
 
