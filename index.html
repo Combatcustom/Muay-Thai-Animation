@@ -10,31 +10,40 @@
             background: #1a1a1a;
             font-family: sans-serif;
             color: #fff;
+            overflow: hidden;
         }
         model-viewer {
             width: 100vw;
             height: 85vh;
         }
         .controls {
-            padding: 16px;
+            padding: 10px;
             text-align: center;
+            background: #2a2a2a;
         }
         input[type="file"] {
             color: #fff;
         }
-
-        /* CSS styling that handles the patch appearance */
-        .floating-patch-container {
-            display: none; /* Hidden until a file is uploaded */
-            pointer-events: none; /* Stops the image overlay from blocking mouse controls */
+        #coordDisplay {
+            margin-top: 8px;
+            font-family: monospace;
+            color: #00ffcc;
+            font-size: 14px;
         }
 
+        /* Hotspot wrapper container managed by model-viewer */
+        .floating-patch-container {
+            display: none; /* Hidden until upload */
+            pointer-events: none;
+            transition: opacity 0.1s;
+        }
+
+        /* Ensure the image stays pinned tightly to the surface */
         .floating-patch-container img {
-            width: 90px; /* Adjust this number to scale your patch larger or smaller */
+            width: 90px; /* Adjust scale here */
             height: auto;
-            /* Creates a shadow underneath the image so it pops out from the fabric */
-            filter: drop-shadow(0px 3px 3px rgba(0, 0, 0, 0.75));
-            transform: translate(-50%, -50%); /* Keeps the logo perfectly centered on the coordinate point */
+            transform: translate(-50%, -50%);
+            filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.8));
         }
     </style>
 </head>
@@ -50,34 +59,55 @@
         exposure="1.2"
         shadow-intensity="1">
 
-        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-crotch" data-position="0m 0.46m -0.25m" data-normal="0m 0m -1m">
+        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-patch">
             <img id="patchPreview" src="" alt="Custom User Patch">
         </div>
 
     </model-viewer>
 
     <div class="controls">
-        <label for="patchUpload">Upload a transparent PNG to inject a floating patch:</label><br><br>
+        <label for="patchUpload">1. Upload a transparent PNG. 2. Click directly on the shorts to position it:</label><br>
         <input type="file" id="patchUpload" accept="image/png">
+        <div id="coordDisplay">Click on the shorts to generate perfect coordinates...</div>
     </div>
 
     <script>
+        const viewer = document.querySelector("#viewer");
         const fileInput = document.querySelector("#patchUpload");
         const patchContainer = document.querySelector("#patchHotspot");
         const patchImage = document.querySelector("#patchPreview");
+        const coordDisplay = document.querySelector("#coordDisplay");
 
+        // Handle image upload mapping
         fileInput.addEventListener("change", (event) => {
             const file = event.target.files[0];
             if (!file) return;
 
-            // Create local object reference link
             const imageUrl = URL.createObjectURL(file);
-
-            // Force image source path update
             patchImage.src = imageUrl;
+            patchContainer.style.display = "block";
+        });
+
+        // CLICK TO POSITION LOGIC: Finds the exact mesh surface coordinates instantly
+        viewer.addEventListener("click", (event) => {
+            // Ask model-viewer exactly what 3D point was clicked on the model surface
+            const hit = viewer.positionAndNormalFromPoint(event.clientX, event.clientY);
             
-            // Set element visibility state to active
-            patchContainer.style.display = "block"; 
+            if (hit) {
+                const pos = hit.position;
+                const norm = hit.normal;
+
+                // Turn the coordinates into clean text strings
+                const posString = `${pos.x.toFixed(3)}m ${pos.y.toFixed(3)}m ${pos.z.toFixed(3)}m`;
+                const normString = `${norm.x.toFixed(3)}m ${norm.y.toFixed(3)}m ${norm.z.toFixed(3)}m`;
+
+                // Update the 3D hotspot attributes to anchor it perfectly on the fabric surface
+                patchContainer.setAttribute("data-position", posString);
+                patchContainer.setAttribute("data-normal", normString);
+
+                // Print out the configuration line to the screen so you can save it permanently
+                coordDisplay.innerText = `Current Live Position: data-position="${posString}" data-normal="${normString}"`;
+            }
         });
     </script>
 </body>
