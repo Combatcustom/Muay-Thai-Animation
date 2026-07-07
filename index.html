@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dynamic Floating Patch Test</title>
+    <title>Dynamic Texture Projection Test</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
         body {
@@ -10,40 +10,26 @@
             background: #1a1a1a;
             font-family: sans-serif;
             color: #fff;
-            overflow: hidden;
         }
         model-viewer {
             width: 100vw;
-            height: 85vh;
+            height: 82vh;
         }
         .controls {
-            padding: 10px;
+            padding: 16px;
             text-align: center;
-            background: #2a2a2a;
+            background: #222;
         }
         input[type="file"] {
             color: #fff;
         }
-        #coordDisplay {
-            margin-top: 8px;
-            font-family: monospace;
-            color: #00ffcc;
+        .slider-group {
+            margin-top: 10px;
+            display: inline-block;
+            margin-right: 20px;
+        }
+        label {
             font-size: 14px;
-        }
-
-        /* Hotspot wrapper container managed by model-viewer */
-        .floating-patch-container {
-            display: none; /* Hidden until upload */
-            pointer-events: none;
-            transition: opacity 0.1s;
-        }
-
-        /* Ensure the image stays pinned tightly to the surface */
-        .floating-patch-container img {
-            width: 90px; /* Adjust scale here */
-            height: auto;
-            transform: translate(-50%, -50%);
-            filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.8));
         }
     </style>
 </head>
@@ -58,57 +44,98 @@
         rotation-per-second="-35deg"
         exposure="1.2"
         shadow-intensity="1">
-
-        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-patch">
-            <img id="patchPreview" src="" alt="Custom User Patch">
-        </div>
-
     </model-viewer>
 
     <div class="controls">
-        <label for="patchUpload">1. Upload a transparent PNG. 2. Click directly on the shorts to position it:</label><br>
+        <label for="patchUpload">Upload a transparent PNG patch:</label>
         <input type="file" id="patchUpload" accept="image/png">
-        <div id="coordDisplay">Click on the shorts to generate perfect coordinates...</div>
+        
+        <br>
+        <div class="slider-group">
+            <label>Vertical Position: </label>
+            <input type="range" id="posYSlider" min="0" max="2048" value="1150">
+        </div>
+        <div class="slider-group">
+            <label>Patch Scale: </label>
+            <input type="range" id="scaleSlider" min="100" max="800" value="350">
+        </div>
     </div>
 
     <script>
         const viewer = document.querySelector("#viewer");
         const fileInput = document.querySelector("#patchUpload");
-        const patchContainer = document.querySelector("#patchHotspot");
-        const patchImage = document.querySelector("#patchPreview");
-        const coordDisplay = document.querySelector("#coordDisplay");
+        const posYSlider = document.querySelector("#posYSlider");
+        const scaleSlider = document.querySelector("#scaleSlider");
 
-        // Handle image upload mapping
-        fileInput.addEventListener("change", (event) => {
+        let loadedImg = null;
+
+        // Process and draw the texture live onto the fabric panels
+        async function updateTexture() {
+            if (!loadedImg || !viewer.model) return;
+
+            const canvasSize = 2048;
+            const canvas = document.createElement("canvas");
+            canvas.width = canvasSize;
+            canvas.height = canvasSize;
+            const ctx = canvas.getContext("2d");
+
+            ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+            // Fetch live placement values from user sliders
+            const patchWidth = parseInt(scaleSlider.value);
+            const patchHeight = patchWidth * (loadedImg.height / loadedImg.width);
+            
+            // X centers it perfectly across the front left/right seam line
+            const posX = (canvasSize - patchWidth) / 2;
+            const posY = parseInt(posYSlider.value); 
+
+            // Draw graphic to coordinate bounds
+            ctx.drawImage(loadedImg, posX, posY, patchWidth, patchHeight);
+
+            const dataUrl = canvas.toDataURL("image/png");
+            const texture = await viewer.createTexture(dataUrl);
+
+            // Directly skin it over the real fabric meshes so it moves 1:1 with rotations
+            const frontPanels = ["FrontLeftPanel", "FrontRightPanel"];
+            viewer.model.materials.forEach(material => {
+                if (frontPanels.includes(material.name)) {
+                    if (!material.pbrMetallicRoughness.baseColorTexture) {
+                        material.pbrMetallicRoughness.createTextureInfo();
+                    }
+                    material.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
+                    material.setAlphaMode("BLEND");
+                }
+            });
+        }
+
+        fileInput.addEventListener("change", async (event) => {
             const file = event.target.files[0];
             if (!file) return;
 
-            const imageUrl = URL.createObjectURL(file);
-            patchImage.src = imageUrl;
-            patchContainer.style.display = "block";
-        });
-
-        // CLICK TO POSITION LOGIC: Finds the exact mesh surface coordinates instantly
-        viewer.addEventListener("click", (event) => {
-            // Ask model-viewer exactly what 3D point was clicked on the model surface
-            const hit = viewer.positionAndNormalFromPoint(event.clientX, event.clientY);
-            
-            if (hit) {
-                const pos = hit.position;
-                const norm = hit.normal;
-
-                // Turn the coordinates into clean text strings
-                const posString = `${pos.x.toFixed(3)}m ${pos.y.toFixed(3)}m ${pos.z.toFixed(3)}m`;
-                const normString = `${norm.x.toFixed(3)}m ${norm.y.toFixed(3)}m ${norm.z.toFixed(3)}m`;
-
-                // Update the 3D hotspot attributes to anchor it perfectly on the fabric surface
-                patchContainer.setAttribute("data-position", posString);
-                patchContainer.setAttribute("data-normal", normString);
-
-                // Print out the configuration line to the screen so you can save it permanently
-                coordDisplay.innerText = `Current Live Position: data-position="${posString}" data-normal="${normString}"`;
+            if (!viewer.model) {
+                alert("Model hasn't finished loading yet!");
+                return;
             }
+
+            const imageUrl = URL.createObjectURL(file);
+            loadedImg = await loadImage(imageUrl);
+            
+            updateTexture();
+            URL.revokeObjectURL(imageUrl);
         });
+
+        // Trigger updates instantly when you move the adjustment sliders
+        posYSlider.addEventListener("input", updateTexture);
+        scaleSlider.addEventListener("input", updateTexture);
+
+        function loadImage(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = url;
+            });
+        }
     </script>
 </body>
 </html>
