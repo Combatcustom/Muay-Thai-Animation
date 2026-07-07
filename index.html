@@ -28,10 +28,11 @@
 
     <model-viewer
         id="viewer"
-        src="model.glb"
+        src="MT SHORTS.glb"
         alt="Patch test model"
         camera-controls
         auto-rotate
+        rotation-per-second="-35deg"
         exposure="1.1"
         shadow-intensity="1">
     </model-viewer>
@@ -45,8 +46,7 @@
         const viewer = document.querySelector("#viewer");
         const fileInput = document.querySelector("#patchUpload");
 
-        // Name of the mesh/material in the .glb that represents the raised patch panel.
-        // Must match exactly what's set in the 3D software.
+        // Name of the mesh/material in your .glb that represents the raised patch panel.
         const PATCH_MATERIAL_NAME = "PatchSpace";
 
         fileInput.addEventListener("change", async (event) => {
@@ -58,41 +58,36 @@
                 return;
             }
 
-            // 1. Load the uploaded PNG into an Image object
             const imageUrl = URL.createObjectURL(file);
             const img = await loadImage(imageUrl);
 
-            // 2. Draw it onto a canvas. A standard 2D canvas context preserves the
-            //    PNG's alpha channel automatically - no extra work needed to carry
-            //    transparency through into the texture.
             const canvas = document.createElement("canvas");
             canvas.width = img.width;
             canvas.height = img.height;
             const ctx = canvas.getContext("2d");
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // ensure fully transparent base
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
             ctx.drawImage(img, 0, 0);
 
-            // 3. Turn that canvas into a texture model-viewer can use on a material
             const dataUrl = canvas.toDataURL("image/png");
             const texture = await viewer.createTexture(dataUrl);
 
-            // 4. Find the patch material and apply the texture
             const patchMaterial = viewer.model.materials.find(m => m.name === PATCH_MATERIAL_NAME);
             if (!patchMaterial) {
                 alert(`No material named "${PATCH_MATERIAL_NAME}" found on this model.`);
                 return;
             }
 
+            // FIXED: Safety check ensures model-viewer initializes the texture block if empty
+            if (!patchMaterial.pbrMetallicRoughness.baseColorTexture) {
+                patchMaterial.pbrMetallicRoughness.createTextureInfo();
+            }
+
             patchMaterial.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
             patchMaterial.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
 
-            // 5. This is the key step for the "cuts itself to the shape" effect:
-            //    MASK mode tells the renderer to fully discard any pixel where the
-            //    base color texture's own alpha channel falls below the cutoff -
-            //    so the mesh visually disappears everywhere the PNG was transparent,
-            //    leaving only the uploaded shape's silhouette "cut out" and visible.
+            // Alpha masking logic
             patchMaterial.setAlphaMode("MASK");
-            patchMaterial.setAlphaCutoff(0.5); // pixels with alpha below this are discarded entirely
+            patchMaterial.setAlphaCutoff(0.5); 
 
             URL.revokeObjectURL(imageUrl);
         });
