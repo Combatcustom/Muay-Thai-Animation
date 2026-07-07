@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dynamic Texture Projection Test</title>
+    <title>Dynamic Center Patch Test</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
         body {
@@ -28,9 +28,6 @@
             display: inline-block;
             margin-right: 20px;
         }
-        label {
-            font-size: 14px;
-        }
     </style>
 </head>
 <body>
@@ -52,8 +49,12 @@
         
         <br>
         <div class="slider-group">
-            <label>Vertical Position: </label>
-            <input type="range" id="posYSlider" min="0" max="2048" value="1150">
+            <label>Move Left/Right: </label>
+            <input type="range" id="posXSlider" min="0" max="2048" value="1024">
+        </div>
+        <div class="slider-group">
+            <label>Move Up/Down: </label>
+            <input type="range" id="posYSlider" min="0" max="2048" value="1300">
         </div>
         <div class="slider-group">
             <label>Patch Scale: </label>
@@ -64,12 +65,13 @@
     <script>
         const viewer = document.querySelector("#viewer");
         const fileInput = document.querySelector("#patchUpload");
+        const posXSlider = document.querySelector("#posXSlider");
         const posYSlider = document.querySelector("#posYSlider");
         const scaleSlider = document.querySelector("#scaleSlider");
 
         let loadedImg = null;
+        let originalTextures = new Map(); // Store original textures to prevent panels from vanishing
 
-        // Process and draw the texture live onto the fabric panels
         async function updateTexture() {
             if (!loadedImg || !viewer.model) return;
 
@@ -79,31 +81,29 @@
             canvas.height = canvasSize;
             const ctx = canvas.getContext("2d");
 
-            ctx.clearRect(0, 0, canvasSize, canvasSize);
-
-            // Fetch live placement values from user sliders
+            // 1. Draw the uploaded image onto our clean canvas using the slider offsets
             const patchWidth = parseInt(scaleSlider.value);
             const patchHeight = patchWidth * (loadedImg.height / loadedImg.width);
-            
-            // X centers it perfectly across the front left/right seam line
-            const posX = (canvasSize - patchWidth) / 2;
-            const posY = parseInt(posYSlider.value); 
+            const posX = parseInt(posXSlider.value) - (patchWidth / 2);
+            const posY = parseInt(posYSlider.value) - (patchHeight / 2); 
 
-            // Draw graphic to coordinate bounds
             ctx.drawImage(loadedImg, posX, posY, patchWidth, patchHeight);
 
             const dataUrl = canvas.toDataURL("image/png");
-            const texture = await viewer.createTexture(dataUrl);
+            const patchTexture = await viewer.createTexture(dataUrl);
 
-            // Directly skin it over the real fabric meshes so it moves 1:1 with rotations
+            // 2. Target the main front fabric panels
             const frontPanels = ["FrontLeftPanel", "FrontRightPanel"];
+            
             viewer.model.materials.forEach(material => {
                 if (frontPanels.includes(material.name)) {
-                    if (!material.pbrMetallicRoughness.baseColorTexture) {
-                        material.pbrMetallicRoughness.createTextureInfo();
+                    // Keep the fabric completely solid (NO MORE DISAPPEARING PANELS)
+                    material.setAlphaMode("OPAQUE");
+
+                    // Inject the user's logo directly into the texture layer
+                    if (material.pbrMetallicRoughness.baseColorTexture) {
+                        material.pbrMetallicRoughness.baseColorTexture.setTexture(patchTexture);
                     }
-                    material.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
-                    material.setAlphaMode("BLEND");
                 }
             });
         }
@@ -124,7 +124,8 @@
             URL.revokeObjectURL(imageUrl);
         });
 
-        // Trigger updates instantly when you move the adjustment sliders
+        // Live slider listeners
+        posXSlider.addEventListener("input", updateTexture);
         posYSlider.addEventListener("input", updateTexture);
         scaleSlider.addEventListener("input", updateTexture);
 
