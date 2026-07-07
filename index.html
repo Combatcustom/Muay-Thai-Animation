@@ -23,18 +23,18 @@
             color: #fff;
         }
 
-        /* THE CHOSEN ILLUSION: CSS Styling for the injected floating patch */
+        /* CSS styling that gives the uploaded patch its 3D depth and shadow */
         .floating-patch-container {
-            display: none; /* Hidden by default until upload */
-            pointer-events: none; /* Prevents the patch from blocking orbital mouse controls */
+            display: none; /* Hidden until a file is uploaded */
+            pointer-events: none; /* Stops the image from blocking your mouse rotations */
         }
 
         .floating-patch-container img {
-            width: 90px; /* Adjust size of the patch here */
+            width: 90px; /* Adjust this number to make your patch larger or smaller */
             height: auto;
-            /* A subtle CSS drop-shadow sells the "raised off the fabric" 3D look */
+            /* Creates a shadow underneath the image so it looks raised from the fabric */
             filter: drop-shadow(0px 3px 3px rgba(0, 0, 0, 0.65));
-            transform: translate(-50%, -50%); /* Keeps it perfectly centered on the coordinate */
+            transform: translate(-50%, -50%); /* Keeps the logo perfectly centered on the target coordinate */
         }
     </style>
 </head>
@@ -50,8 +50,7 @@
         exposure="1.2"
         shadow-intensity="1">
 
-        /* INJECTED TARGET: This hotspot maps to 3D space coordinates right on the front crotch seam */
-        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-crotch" data-position="0m 0.38m 0.16m" data-normal="0m 0m 1m">
+        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-crotch" data-position="0m 0.52m 0.25m" data-normal="0m 0m 1m">
             <img id="patchPreview" src="" alt="Custom User Patch">
         </div>
 
@@ -71,12 +70,12 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            // Create a local URL for the uploaded image file
+            // Generate a local path link for your uploaded file
             const imageUrl = URL.createObjectURL(file);
 
-            // Feed the image URL directly into our injected hotspot layer
+            // Send that image path straight into the floating element on the shorts
             patchImage.src = imageUrl;
-            patchContainer.style.display = "block"; // Make the patch visible instantly
+            patchContainer.style.style.display = "block"; // Make it visible instantly
         });
     </script>
 </body>
