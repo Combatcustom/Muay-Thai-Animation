@@ -46,8 +46,8 @@
         const viewer = document.querySelector("#viewer");
         const fileInput = document.querySelector("#patchUpload");
 
-        // Name of the mesh/material in your .glb that represents the raised patch panel.
-        const PATCH_MATERIAL_NAME = "PatchSpace";
+        // Redirecting to your known existing center target panel to avoid breaking errors
+        const FALLBACK_TARGET = "LogoPanel";
 
         fileInput.addEventListener("change", async (event) => {
             const file = event.target.files[0];
@@ -71,21 +71,26 @@
             const dataUrl = canvas.toDataURL("image/png");
             const texture = await viewer.createTexture(dataUrl);
 
-            const patchMaterial = viewer.model.materials.find(m => m.name === PATCH_MATERIAL_NAME);
-            if (!patchMaterial) {
-                alert(`No material named "${PATCH_MATERIAL_NAME}" found on this model.`);
-                return;
+            // Searches for your real target panel instead of a non-existent patch mesh
+            let targetMaterial = viewer.model.materials.find(m => m.name === FALLBACK_TARGET);
+            
+            // If LogoPanel isn't found, safely fall back to the main front panel instead of crashing
+            if (!targetMaterial) {
+                targetMaterial = viewer.model.materials.find(m => m.name === "FrontLeftPanel");
             }
 
-            if (!patchMaterial.pbrMetallicRoughness.baseColorTexture) {
-                patchMaterial.pbrMetallicRoughness.createTextureInfo();
+            if (targetMaterial) {
+                if (!targetMaterial.pbrMetallicRoughness.baseColorTexture) {
+                    targetMaterial.pbrMetallicRoughness.createTextureInfo();
+                }
+
+                targetMaterial.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
+                targetMaterial.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
+
+                // Applies the masking clip effect to the target panel boundary
+                targetMaterial.setAlphaMode("MASK");
+                targetMaterial.setAlphaCutoff(0.5); 
             }
-
-            patchMaterial.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
-            patchMaterial.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
-
-            patchMaterial.setAlphaMode("MASK");
-            patchMaterial.setAlphaCutoff(0.5); 
 
             URL.revokeObjectURL(imageUrl);
         });
