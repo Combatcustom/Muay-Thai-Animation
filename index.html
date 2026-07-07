@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dynamic Patch Test</title>
+    <title>Dynamic Floating Patch Test</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
         body {
@@ -22,6 +22,20 @@
         input[type="file"] {
             color: #fff;
         }
+
+        /* THE CHOSEN ILLUSION: CSS Styling for the injected floating patch */
+        .floating-patch-container {
+            display: none; /* Hidden by default until upload */
+            pointer-events: none; /* Prevents the patch from blocking orbital mouse controls */
+        }
+
+        .floating-patch-container img {
+            width: 90px; /* Adjust size of the patch here */
+            height: auto;
+            /* A subtle CSS drop-shadow sells the "raised off the fabric" 3D look */
+            filter: drop-shadow(0px 3px 3px rgba(0, 0, 0, 0.65));
+            transform: translate(-50%, -50%); /* Keeps it perfectly centered on the coordinate */
+        }
     </style>
 </head>
 <body>
@@ -33,76 +47,37 @@
         camera-controls
         auto-rotate
         rotation-per-second="-35deg"
-        exposure="1.1"
+        exposure="1.2"
         shadow-intensity="1">
+
+        /* INJECTED TARGET: This hotspot maps to 3D space coordinates right on the front crotch seam */
+        <div id="patchHotspot" class="floating-patch-container" slot="hotspot-crotch" data-position="0m 0.38m 0.16m" data-normal="0m 0m 1m">
+            <img id="patchPreview" src="" alt="Custom User Patch">
+        </div>
+
     </model-viewer>
 
     <div class="controls">
-        <label for="patchUpload">Upload a transparent PNG to apply as a patch:</label><br>
+        <label for="patchUpload">Upload a transparent PNG to inject a floating patch:</label><br><br>
         <input type="file" id="patchUpload" accept="image/png">
     </div>
 
     <script>
-        const viewer = document.querySelector("#viewer");
         const fileInput = document.querySelector("#patchUpload");
+        const patchContainer = document.querySelector("#patchHotspot");
+        const patchImage = document.querySelector("#patchPreview");
 
-        // Redirecting to your known existing center target panel to avoid breaking errors
-        const FALLBACK_TARGET = "LogoPanel";
-
-        fileInput.addEventListener("change", async (event) => {
+        fileInput.addEventListener("change", (event) => {
             const file = event.target.files[0];
             if (!file) return;
 
-            if (!viewer.model) {
-                alert("Model hasn't finished loading yet - try again in a moment.");
-                return;
-            }
-
+            // Create a local URL for the uploaded image file
             const imageUrl = URL.createObjectURL(file);
-            const img = await loadImage(imageUrl);
 
-            const canvas = document.createElement("canvas");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d");
-            ctx.clearRect(0, 0, canvas.width, canvas.height); 
-            ctx.drawImage(img, 0, 0);
-
-            const dataUrl = canvas.toDataURL("image/png");
-            const texture = await viewer.createTexture(dataUrl);
-
-            // Searches for your real target panel instead of a non-existent patch mesh
-            let targetMaterial = viewer.model.materials.find(m => m.name === FALLBACK_TARGET);
-            
-            // If LogoPanel isn't found, safely fall back to the main front panel instead of crashing
-            if (!targetMaterial) {
-                targetMaterial = viewer.model.materials.find(m => m.name === "FrontLeftPanel");
-            }
-
-            if (targetMaterial) {
-                if (!targetMaterial.pbrMetallicRoughness.baseColorTexture) {
-                    targetMaterial.pbrMetallicRoughness.createTextureInfo();
-                }
-
-                targetMaterial.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
-                targetMaterial.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
-
-                // Applies the masking clip effect to the target panel boundary
-                targetMaterial.setAlphaMode("MASK");
-                targetMaterial.setAlphaCutoff(0.5); 
-            }
-
-            URL.revokeObjectURL(imageUrl);
+            // Feed the image URL directly into our injected hotspot layer
+            patchImage.src = imageUrl;
+            patchContainer.style.display = "block"; // Make the patch visible instantly
         });
-
-        function loadImage(url) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => resolve(img);
-                img.onerror = reject;
-                img.src = url;
-            });
-        }
     </script>
 </body>
 </html>
