@@ -28,7 +28,7 @@
 
     <model-viewer
         id="viewer"
-        src="MT SHORTS.glb"
+        src="MT_SHORTS.glb"
         alt="Patch test model"
         camera-controls
         auto-rotate
@@ -77,7 +77,6 @@
                 return;
             }
 
-            // FIXED: Safety check ensures model-viewer initializes the texture block if empty
             if (!patchMaterial.pbrMetallicRoughness.baseColorTexture) {
                 patchMaterial.pbrMetallicRoughness.createTextureInfo();
             }
@@ -85,7 +84,6 @@
             patchMaterial.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
             patchMaterial.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
 
-            // Alpha masking logic
             patchMaterial.setAlphaMode("MASK");
             patchMaterial.setAlphaCutoff(0.5); 
 
